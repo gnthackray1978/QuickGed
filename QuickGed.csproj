@@ -8,8 +8,4 @@
     <Version>1.0.0</Version>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="MSG.ConfigHelper" Version="1.0.0" />
-  </ItemGroup>
-
 </Project>
