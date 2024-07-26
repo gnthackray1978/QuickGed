@@ -4,7 +4,8 @@ namespace QuickGed;
 
 public class GedDb
 {
-      
+    private int _startId = 0;
+
     public List<RelationSubSet> Relationships;
     public List<ChildRelationship> ChildRelationships;
     public List<Person> Persons;
@@ -16,18 +17,19 @@ public class GedDb
 
     public long FileSize { get; set; }
 
-    public GedDb()
+    public GedDb(int startId =0)
     {
         ParentDictionary = new Dictionary<int, List<Node>>();
         Relationships = new List<RelationSubSet>();
         ChildRelationships = new List<ChildRelationship>();
         PersonDictionary = new Dictionary<int, Person>();
         Persons = new List<Person>();
+        _startId = startId;
     }
 
     public int NewId()
     {
-        return Persons.Count + 1;
+        return _startId + (Persons.Count + 1);
     }
 
     public void Insert(Person currentPerson)
@@ -37,7 +39,7 @@ public class GedDb
             //possibly not the best place to put this! but can move later
             currentPerson.SetIsRootPerson();
 
-            currentPerson.Id = Persons.Count + 1;
+            currentPerson.Id = this._startId+ (Persons.Count + 1);
             
             Persons.Add(currentPerson);
             PersonDictionary.Add(currentPerson.Id, currentPerson);
@@ -46,9 +48,9 @@ public class GedDb
 
     }
 
-    public static GedDb Create()
+    public static GedDb Create(int startId=0)
     {
-        var g = new GedDb();
+        var g = new GedDb(startId);
             
         return g;
     }

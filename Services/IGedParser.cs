@@ -2,5 +2,5 @@
 
 public interface IGedParser
 {
-    GedDb Parse(string path);
+    GedDb Parse(string path, int startId = 0);
 }

@@ -15,9 +15,9 @@ public class GedParser : IGedParser
         
     }
 
-    public GedDb Parse(string path)
+    public GedDb Parse(string path,int startId=0)
     { 
-        var db = GedDb.Create();
+        var db = GedDb.Create(startId);
 
         db.FileName = Path.GetFileName(path);
 

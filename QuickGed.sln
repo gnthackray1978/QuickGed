@@ -5,6 +5,8 @@ VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QuickGed", "QuickGed.csproj", "{09346E82-D941-4E12-8166-3C2F3E18D59A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickGED.Tests", "..\QuickGED.Tests\QuickGED.Tests.csproj", "{7131F98C-970D-4FA1-B40B-8AA912127D03}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{09346E82-D941-4E12-8166-3C2F3E18D59A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{09346E82-D941-4E12-8166-3C2F3E18D59A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{09346E82-D941-4E12-8166-3C2F3E18D59A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7131F98C-970D-4FA1-B40B-8AA912127D03}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7131F98C-970D-4FA1-B40B-8AA912127D03}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7131F98C-970D-4FA1-B40B-8AA912127D03}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7131F98C-970D-4FA1-B40B-8AA912127D03}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

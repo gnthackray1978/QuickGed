@@ -62,12 +62,16 @@ public static class TreeLabeller
             var current = stack.Pop();
 
             current.Origin = label;
-            current.IsDirectAncestor = isDirectAncestor;
+            
+            if(!current.IsDirectAncestor) //if something has already been set, don't reset it.
+                current.IsDirectAncestor = isDirectAncestor;
 
             foreach (var spouse in current.Spouses)
             {
                 spouse.Origin = label;
-                spouse.IsDirectAncestor = isDirectAncestor;
+
+                if (!spouse.IsDirectAncestor)
+                    spouse.IsDirectAncestor = isDirectAncestor;
             }
             
             //we need a better algorithm for calculating origins of descendants 
@@ -100,7 +104,7 @@ public static class TreeLabeller
 
         foreach (var spouse in parentsToLookup.ToList())
         {
-            LabelAncestors(parentsCache, parentsToLookup, siblings, spouse, label,false);
+            LabelAncestors(parentsCache, parentsToLookup, siblings, spouse, label,true);
 
             LabelDescendants(siblings, label, false);
 

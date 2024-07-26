@@ -1,195 +1,195 @@
-﻿//using System.Diagnostics;
-//using System.Text.RegularExpressions;
-//using LoggingLib;
-//using QuickGed.Services;
-//using QuickGed.Types;
+﻿using System.Diagnostics;
+using System.Text.RegularExpressions;
+using QuickGed.Domain;
+using QuickGed.Services;
+using QuickGed.Types;
 
-//namespace QuickGed
-//{
-//    //reading the gedfile into a list of relationships, persons, and childrelationships
-//    //labelling file
-//    //get lists of tree by group name
-//    public class QuickGed
-//    {
-//        private Ilog _logger;
-//        private string _gedPath;
-//        public GedDb _GedDb { get; set; }
+namespace QuickGed
+{
+    //reading the gedfile into a list of relationships, persons, and childrelationships
+    //labelling file
+    //get lists of tree by group name
+    public class QuickGed
+    {
+        private string _gedPath;
+        public GedDb _GedDb { get; set; }
 
-//        public QuickGed(string filePath, Ilog logger)
-//        {
-//            this._logger = logger;
-//            this._gedPath = filePath;
-//        }
+        public QuickGed(string filePath)
+        {
+            this._gedPath = filePath;
+        }
 
-//        #region uninterested right now
+        #region uninterested right now
 
-//        public int GetMyId()
-//        {
-//            return -1;
-//        }
+        public int GetMyId()
+        {
+            return -1;
+        }
 
-//        public List<Node> GetTreeRootPeople()
-//        {
-//            int personId = GetMyId();
+        public List<Node> GetTreeRootPeople()
+        {
+            int personId = GetMyId();
 
-//            Regex r = new Regex(@"_[1-9]\d*(\.\d+)?_");
+            Regex r = new Regex(@"_[1-9]\d*(\.\d+)?_");
 
 
-//            var result = _GedDb.Persons.Where(p =>
-//                p != null && (!p.FullName.ToLower().Contains("group")
-//                    && p.FullName.ToLower().Contains("_") || p.Id == personId));
+            var result = _GedDb.Persons.Where(p =>
+                p != null && (!p.FullName.ToLower().Contains("group")
+                    && p.FullName.ToLower().Contains("_") || p.Id == personId));
 
-//            var persons = new List<Node>();
+            var persons = new List<Node>();
 
-//            //this should only be a small number of records so the performance hit
-//            //ought to not be noticeable
-//            foreach (var person in result)
-//            {
-//                if (r.IsMatch(person.FullName))
-//                {
-//                    persons.Add(person);
-//                }
-//            }
+            //this should only be a small number of records so the performance hit
+            //ought to not be noticeable
+            foreach (var person in result)
+            {
+                if (r.IsMatch(person.FullName))
+                {
+                    persons.Add(person);
+                }
+            }
 
-//            return persons;
-//        }
+            return persons;
+        }
 
-//        public HashSet<int> GetListOfTreeIds()
-//        {
-//            var lst = GetTreeRootPersons().Select(s => s.Id);
+        public HashSet<int> GetListOfTreeIds()
+        {
+            var lst = GetTreeRootPersons().Select(s => s.Id);
 
-//            var set = new HashSet<int>();
+            var set = new HashSet<int>();
 
-//            foreach (var i in lst)
-//            {
-//                set.Add(i);
-//            }
+            foreach (var i in lst)
+            {
+                set.Add(i);
+            }
 
-//            return set;
-//        }
+            return set;
+        }
 
-//        public Dictionary<int, string> GetTreeRootNameDictionary()
-//        {
-//            var nameDictionary = new Dictionary<int, string>();
+        public Dictionary<int, string> GetTreeRootNameDictionary()
+        {
+            var nameDictionary = new Dictionary<int, string>();
 
-//            var lst = GetTreeRootPersons();
+            var lst = GetTreeRootPersons();
 
-//            foreach (var i in lst)
-//            {
-//                nameDictionary.Add(i.Id, i.FullName);
-//            }
+            foreach (var i in lst)
+            {
+                nameDictionary.Add(i.Id, i.FullName);
+            }
 
-//            return nameDictionary;
-//        }
+            return nameDictionary;
+        }
 
-//        public Dictionary<int, string> GetTreeGroupNameDictionary()
-//        {
-//            var nameDictionary = new Dictionary<int, string>();
-
-
-//            var gps = GetGroupPerson();
-
-//            foreach (var i in gps)
-//            {
-//                nameDictionary.Add(i.Id, i.FullName);
-//            }
-
-//            return nameDictionary;
-//        }
-
-//        private IReadOnlyList<Node> GetTreeRootPersons()
-//        {
-//            int personId = GetMyId();
-
-//            Regex r = new Regex(@"_[1-9]\d*(\.\d+)?_");
+        public Dictionary<int, string> GetTreeGroupNameDictionary()
+        {
+            var nameDictionary = new Dictionary<int, string>();
 
 
-//            var result = _GedDb.Persons.Where(p =>
-//                p != null && (!p.FullName.ToLower().Contains("group")
-//                    && p.FullName.ToLower().Contains("_") || p.Id == personId));
+            var gps = GetGroupPerson();
 
-//            //this should only be a small number of records so the performance hit
-//            //ought to not be noticeable
+            foreach (var i in gps)
+            {
+                nameDictionary.Add(i.Id, i.FullName);
+            }
 
-//            return result.Where(person => r.IsMatch(person.FullName)).ToList();
-//        }
+            return nameDictionary;
+        }
 
-//        public List<IPerson> GetGroupPerson()
-//        {
-//            var groups = this._GedDb.Persons.Where(p => p != null && p.FullName.ToLower().Contains("group"));
+        public IReadOnlyList<Node> GetTreeRootPersons()
+        {
+            int personId = GetMyId();
 
-//            return groups.Cast<IPerson>().ToList();
-//        }
-
-//        public Dictionary<string, List<string>> GetGroups()
-//        {
-//            var results = new Dictionary<string, List<string>>();
-
-//            var treeIds = GetListOfTreeIds();
+            Regex r = new Regex(@"_[1-9]\d*(\.\d+)?_");
 
 
-//            var tp = this._GedDb.Relationships
-//                .Select(s => new RelationSubSet() { Person1Id = s.Person1Id, Person2Id = s.Person2Id }).ToList();
+            var result = _GedDb.Persons.Where(p =>
+                p != null && (!p.FullName.ToLower().Contains("group")
+                    && p.FullName.ToLower().Contains("_") || p.Id == personId));
 
-//            var nameDict = GetTreeRootNameDictionary();
+            //this should only be a small number of records so the performance hit
+            //ought to not be noticeable
 
-//            var groupNames = GetTreeGroupNameDictionary();
+            return result.Where(person => r.IsMatch(person.FullName)).ToList();
+        }
 
-//            foreach (var treeId in treeIds)
-//            {
+        public List<IPerson> GetGroupPerson()
+        {
+            var groups = this._GedDb.Persons.Where(p => p != null && p.FullName.ToLower().Contains("group"));
 
-//                var groupMembers = tp.Where(t => t.MatchEither(treeId)).Select(s => s.GetOtherSide(treeId)).Distinct().ToList();
+            return groups.Cast<IPerson>().ToList();
+        }
 
-//                var names = IdsToNames(groupMembers, groupNames);
+        public Dictionary<string, List<string>> GetGroups()
+        {
+            var results = new Dictionary<string, List<string>>();
 
-//                results.Add(nameDict[treeId], names);
-//            }
-
-//            return results;
-//        }
-
-//        private static List<string> IdsToNames(List<int> groupMembers, Dictionary<int, string> nameDict)
-//        {
-//            return (from gm in groupMembers where nameDict.ContainsKey(gm) select nameDict[gm]).ToList();
-//        }
-
-    
-//        #endregion
-
-//        public void ParseLabelledTree()
-//        {
-//            _GedDb = GedParser.Parse(this._gedPath);
+            var treeIds = GetListOfTreeIds();
 
 
+            var tp = this._GedDb.Relationships
+                .Select(s => new RelationSubSet() { Person1Id = s.Person1Id, Person2Id = s.Person2Id }).ToList();
 
-//            var rootPersons = this.GetTreeRootPersons();
+            var nameDict = GetTreeRootNameDictionary();
 
-//            Console.WriteLine(rootPersons.Count);
+            var groupNames = GetTreeGroupNameDictionary();
 
-//            var timer = new Stopwatch();
-//            timer.Start();
+            foreach (var treeId in treeIds)
+            {
 
-//            var idx = 0;
+                var groupMembers = tp.Where(t => t.MatchEither(treeId)).Select(s => s.GetOtherSide(treeId)).Distinct().ToList();
 
-//            foreach (var rp in rootPersons)
-//            {
-//                TreeLabeller.LabelTree(this._GedDb.ParentDictionary, rp, rp.FullName);
+                var names = IdsToNames(groupMembers, groupNames);
 
-//                Console.Write("\r{0}%   ", idx);
+                results.Add(nameDict[treeId], names);
+            }
 
-//                idx++;
+            return results;
+        }
 
-//            }
+        private static List<string> IdsToNames(List<int> groupMembers, Dictionary<int, string> nameDict)
+        {
+            return (from gm in groupMembers where nameDict.ContainsKey(gm) select nameDict[gm]).ToList();
+        }
 
-//            timer.Stop();
 
-//            TimeSpan timeTaken = timer.Elapsed;
-//            string foo = "Time taken: " + timeTaken.ToString(@"m\:ss\.fff");
+        #endregion
 
-//            Console.WriteLine(foo);
+        public void ParseLabelledTree()
+        {
+            var gp = new GedParser(new NodeTypeCalculator());
 
-//            Console.WriteLine("finished");
-//        }
+            _GedDb = gp.Parse(this._gedPath);
 
-//    }
-//}
+
+
+            var rootPersons = this.GetTreeRootPersons();
+
+            Console.WriteLine(rootPersons.Count);
+
+            var timer = new Stopwatch();
+            timer.Start();
+
+            var idx = 0;
+
+            foreach (var rp in rootPersons)
+            {
+                TreeLabeller.LabelTree(this._GedDb.ParentDictionary, rp, rp.FullName);
+
+                Console.Write("\r{0}%   ", idx);
+
+                idx++;
+
+            }
+
+            timer.Stop();
+
+            TimeSpan timeTaken = timer.Elapsed;
+            string foo = "Time taken: " + timeTaken.ToString(@"m\:ss\.fff");
+
+            Console.WriteLine(foo);
+
+            Console.WriteLine("finished");
+        }
+
+    }
+}
