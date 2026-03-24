@@ -1,4 +1,4 @@
-﻿using System.Data;
+﻿﻿using System.Data;
 using System.Diagnostics;
 using QuickGed.Domain;
 using QuickGed.Types;
@@ -50,6 +50,8 @@ public class GedParser : IGedParser
 
         foreach (var line in gedcomLines)
         {
+            if (line == null) continue;
+
             //line.Level    
             if (line.Level == 1) currentLevelOneType = line.Type;
 
@@ -71,6 +73,7 @@ public class GedParser : IGedParser
                 currentPerson = new Person(db.NewId(), _nodeTypeCalculator);
 
                 idLookupDictionary.Add(line.Id, currentPerson.Id);
+                db.PersonReferenceById[currentPerson.Id] = line.Id;
             }
             
             if (line.Type == "FAM" && currentPerson != null)// we have moved on to the families tidy up the last entry in the persons list
@@ -186,26 +189,26 @@ public class GedParser : IGedParser
                         currentWife = 0;
                         break;
                     case "HUSB":
-                        if (line.Reference != null)
-                            currentHusband = idLookupDictionary[line.Reference];
+                        if (line.Reference != null && idLookupDictionary.TryGetValue(line.Reference, out var husbandId))
+                            currentHusband = husbandId;
                         break;
                     case "WIFE":
-                        if (line.Reference != null)
-                            currentWife = idLookupDictionary[line.Reference];
+                        if (line.Reference != null && idLookupDictionary.TryGetValue(line.Reference, out var wifeId))
+                            currentWife = wifeId;
                         break;
                     case "CHIL":
                         //currentHusband = 0;
                         //currentWife = 0;
-                        if (line.Reference != null)
+                        if (line.Reference != null && idLookupDictionary.TryGetValue(line.Reference, out var childId))
                         {
-                            var child = idLookupDictionary[line.Reference];
+                            var child = childId;
 
-                            db.PersonDictionary[child].FatherId = currentHusband;
-                            db.PersonDictionary[child].MotherId = currentWife;
+                            if (db.PersonDictionary.ContainsKey(child))
+                            {
+                                db.PersonDictionary[child].FatherId = currentHusband;
+                                db.PersonDictionary[child].MotherId = currentWife;
 
-
-
-                            childList.Add(db.PersonDictionary[child]);
+                                childList.Add(db.PersonDictionary[child]);
 
                             if (!db.ParentDictionary.ContainsKey(child))
                             {
@@ -218,6 +221,7 @@ public class GedParser : IGedParser
                                     parentList.Add(db.PersonDictionary[currentWife]);
 
                                 db.ParentDictionary.Add(child, parentList);
+                            }
                             }
                         }
 
@@ -257,6 +261,7 @@ public class GedParser : IGedParser
         TimeSpan timeTaken = timer.Elapsed;
         string foo = "Time taken: " + timeTaken.ToString(@"m\:ss\.fff");
 
+        Console.WriteLine($"[TRACE] GedParser finished parsing file. Total persons: {db.Persons.Count}");
         Console.WriteLine(foo);
 
         return db;
@@ -324,7 +329,11 @@ public class GedParser : IGedParser
 
                     var parts = line.Data.Split("/").Where(w=>w!="").Select(s=> s.Replace("/","")).ToList();
                     
-                    if (parts.Count == 1)
+                    if (parts.Count == 0)
+                    {
+                        // Ignore if no valid parts
+                    }
+                    else if (parts.Count == 1)
                     {
                         currentPerson.FamilyName = parts[0];
                     }

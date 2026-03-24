@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿﻿using System.Diagnostics;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using QuickGed.Domain;
 using QuickGed.Services;
@@ -12,44 +13,26 @@ namespace QuickGed
     public class QuickGed
     {
         private string _gedPath;
+        private readonly string _exclusionFilePath;
+        private readonly HashSet<int> _excludedPersonIds;
+        private readonly HashSet<string> _deletedPersonReferences;
         public GedDb _GedDb { get; set; }
 
         public QuickGed(string filePath)
         {
             this._gedPath = filePath;
+            _exclusionFilePath = Path.Combine(AppContext.BaseDirectory, "quickged.exclusions.json");
+            _excludedPersonIds = LoadExcludedPersonIds();
+            _deletedPersonReferences = new HashSet<string>();
         }
+
+        public bool IsParsed => _GedDb != null;
 
         #region uninterested right now
 
         public int GetMyId()
         {
             return -1;
-        }
-
-        public List<Node> GetTreeRootPeople()
-        {
-            int personId = GetMyId();
-
-            Regex r = new Regex(@"_[1-9]\d*(\.\d+)?_");
-
-
-            var result = _GedDb.Persons.Where(p =>
-                p != null && (!p.FullName.ToLower().Contains("group")
-                    && p.FullName.ToLower().Contains("_") || p.Id == personId));
-
-            var persons = new List<Node>();
-
-            //this should only be a small number of records so the performance hit
-            //ought to not be noticeable
-            foreach (var person in result)
-            {
-                if (r.IsMatch(person.FullName))
-                {
-                    persons.Add(person);
-                }
-            }
-
-            return persons;
         }
 
         public HashSet<int> GetListOfTreeIds()
@@ -99,22 +82,31 @@ namespace QuickGed
         {
             int personId = GetMyId();
 
-            Regex r = new Regex(@"_[1-9]\d*(\.\d+)?_");
+            Regex r = new Regex(@"^(\[\d+\]|\d+\s|\|\[\d+\]\||\|\d+\|)");
 
 
             var result = _GedDb.Persons.Where(p =>
-                p != null && (!p.FullName.ToLower().Contains("group")
-                    && p.FullName.ToLower().Contains("_") || p.Id == personId));
+                p != null && !string.IsNullOrEmpty(p.FullName) && (!p.FullName.ToLower().Contains("group") || p.Id == personId));
 
-            //this should only be a small number of records so the performance hit
-            //ought to not be noticeable
-
-            return result.Where(person => r.IsMatch(person.FullName)).ToList();
+            var persons = new List<Node>();
+            
+            // Added the loop here so your traces print out during ParseLabelledTree
+            foreach (var person in result)
+            {
+                // Console.WriteLine($"[TRACE] Checking potential root: '{person.FullName}'");
+                if (!string.IsNullOrEmpty(person.FullName) && r.IsMatch(person.FullName.Trim()))
+                {
+                     Console.WriteLine($"[TRACE] Checking potential root: '{person.FullName}'");
+                    persons.Add(person);
+                }
+            }
+            
+            return persons;
         }
 
         public List<IPerson> GetGroupPerson()
         {
-            var groups = this._GedDb.Persons.Where(p => p != null && p.FullName.ToLower().Contains("group"));
+            var groups = this._GedDb.Persons.Where(p => p != null && !string.IsNullOrEmpty(p.FullName) && p.FullName.ToLower().Contains("group"));
 
             return groups.Cast<IPerson>().ToList();
         }
@@ -154,17 +146,77 @@ namespace QuickGed
 
         #endregion
 
+        public void DummyEntry()
+        {
+            Console.WriteLine("dummy");
+        }
+
+        public bool AddExcludedPersonId(int personId)
+        {
+            if (!_excludedPersonIds.Add(personId))
+            {
+                return false;
+            }
+
+            SaveExcludedPersonIds();
+            return true;
+        }
+
+        public bool RemoveExcludedPersonId(int personId)
+        {
+            if (!_excludedPersonIds.Remove(personId))
+            {
+                return false;
+            }
+
+            SaveExcludedPersonIds();
+            return true;
+        }
+
+        public IReadOnlyList<int> GetExcludedPersonIds()
+        {
+            return _excludedPersonIds.OrderBy(i => i).ToList();
+        }
+
+        public AncestorBranchDeletionResult DeleteAncestorBranchesForPerson(int personId, bool dryRun = false)
+        {
+            if (_GedDb == null)
+            {
+                throw new InvalidOperationException("No parsed GED data found. Run ParseLabelledTree first.");
+            }
+
+            var deletionService = new AncestorBranchDeletionService();
+            var result = deletionService.CalculateDeleteSet(_GedDb, personId, _excludedPersonIds);
+
+            if (!dryRun)
+            {
+                foreach (var id in result.FinalDeleteIds)
+                {
+                    if (_GedDb.PersonReferenceById.TryGetValue(id, out var personRef) && !string.IsNullOrWhiteSpace(personRef))
+                    {
+                        _deletedPersonReferences.Add(personRef);
+                    }
+                }
+
+                result.DeletedCount = _GedDb.DeletePeopleAndRebuild(result.FinalDeleteIds);
+            }
+
+            return result;
+        }
+
         public void ParseLabelledTree()
         {
             var gp = new GedParser(new NodeTypeCalculator());
 
             _GedDb = gp.Parse(this._gedPath);
+            Console.WriteLine($"[TRACE] QuickGed database populated with {_GedDb.Persons.Count} persons.");
+            _deletedPersonReferences.Clear();
 
 
 
             var rootPersons = this.GetTreeRootPersons();
 
-            Console.WriteLine(rootPersons.Count);
+            Console.WriteLine($"[TRACE] Found {rootPersons.Count} root persons matching the default pattern for labelling.");
 
             var timer = new Stopwatch();
             timer.Start();
@@ -189,6 +241,59 @@ namespace QuickGed
             Console.WriteLine(foo);
 
             Console.WriteLine("finished");
+        }
+
+        public string GetPersonDisplayName(int personId)
+        {
+            if (_GedDb == null)
+            {
+                return $"{personId} (unloaded)";
+            }
+
+            if (_GedDb.PersonDictionary.TryGetValue(personId, out var person))
+            {
+                return $"{person.Id}: {person.FullName}";
+            }
+
+            return $"{personId} (not found)";
+        }
+
+        public void ExportCurrentGed(string outputPath)
+        {
+            if (_GedDb == null)
+            {
+                throw new InvalidOperationException("No parsed GED data found. Run ParseLabelledTree first.");
+            }
+
+            var exportService = new GedExportService();
+            exportService.ExportWithoutDeletedPeople(_gedPath, outputPath, _deletedPersonReferences);
+        }
+
+        private HashSet<int> LoadExcludedPersonIds()
+        {
+            try
+            {
+                if (!File.Exists(_exclusionFilePath))
+                {
+                    return new HashSet<int>();
+                }
+
+                var raw = File.ReadAllText(_exclusionFilePath);
+                var values = JsonSerializer.Deserialize<List<int>>(raw);
+
+                return values == null ? new HashSet<int>() : new HashSet<int>(values);
+            }
+            catch
+            {
+                return new HashSet<int>();
+            }
+        }
+
+        private void SaveExcludedPersonIds()
+        {
+            var ordered = _excludedPersonIds.OrderBy(i => i).ToList();
+            var json = JsonSerializer.Serialize(ordered, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_exclusionFilePath, json);
         }
 
     }
