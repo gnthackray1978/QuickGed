@@ -1,4 +1,4 @@
-﻿using QuickGed.Types;
+﻿﻿using QuickGed.Types;
 
 namespace QuickGed;
 
@@ -38,9 +38,6 @@ public class GedDb
     {
         if (currentPerson != null)
         {
-            //possibly not the best place to put this! but can move later
-            currentPerson.SetIsRootPerson();
-
             currentPerson.Id = this._startId+ (Persons.Count + 1);
             
             Persons.Add(currentPerson);
@@ -167,7 +164,14 @@ public class GedDb
 
             if (parents.Count > 0)
             {
-                ParentDictionary[child.Id] = parents;
+                if (!ParentDictionary.ContainsKey(child.Id))
+                {
+                    ParentDictionary[child.Id] = new List<Node>();
+                }
+                foreach (var p in parents)
+                {
+                    AddUniqueNode(ParentDictionary[child.Id], p);
+                }
             }
         }
 

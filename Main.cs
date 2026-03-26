@@ -20,6 +20,7 @@ while (!shouldExit)
     Console.WriteLine("7. List Excluded Person Ids");
     Console.WriteLine("8. Export Current GED");
     Console.WriteLine("9. List Sub-Trees");
+    Console.WriteLine("10. Dump Person Origins");
     Console.WriteLine("0. Exit");
     Console.WriteLine();
     Console.Write("Select an option: ");
@@ -54,6 +55,9 @@ while (!shouldExit)
             break;
         case "9":
             ListSubTrees(app);
+            break;
+        case "10":
+            RunDumpPersonOrigins(app);
             break;
         case "0":
             shouldExit = true;
@@ -110,6 +114,31 @@ static void RunParseLabelledTree(string defaultGedPath, ref QuickGed.QuickGed? a
         app = new QuickGed.QuickGed(gedPath);
         app.ParseLabelledTree();
         Console.WriteLine($"GED file parsed and loaded. Total people in DB: {app._GedDb?.Persons?.Count ?? 0}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+
+    Console.WriteLine("Press Enter to return to menu.");
+    Console.ReadLine();
+}
+
+static void RunDumpPersonOrigins(QuickGed.QuickGed? app)
+{
+    Console.WriteLine();
+
+    if (app == null || !app.IsParsed)
+    {
+        Console.WriteLine("No parsed GED data found. Run ParseLabelledTree first.");
+        Console.WriteLine("Press Enter to return to menu.");
+        Console.ReadLine();
+        return;
+    }
+
+    try
+    {
+        app.DumpPersonOrigins();
     }
     catch (Exception ex)
     {

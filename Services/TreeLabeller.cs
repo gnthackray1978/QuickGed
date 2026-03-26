@@ -4,6 +4,27 @@ namespace QuickGed.Services;
 
 public static class TreeLabeller
 {
+    private static IEnumerable<Node> GetPartners(Node current, Dictionary<int, List<Node>> parentsDictionary)
+    {
+        var partners = new HashSet<Node>(current.Spouses);
+        
+        if (current.Children != null)
+        {
+            foreach (var child in current.Children)
+            {
+                if (parentsDictionary.TryGetValue(child.Id, out var parents))
+                {
+                    foreach (var parent in parents.Where(p => p.Id != current.Id))
+                    {
+                        partners.Add(parent);
+                    }
+                }
+            }
+        }
+        
+        return partners;
+    }
+
     public static void LabelAncestors(Dictionary<int, List<Node>> parentsDictionary,
         HashSet<Node> parentsToLookup, List<Node> siblingList, Node startNode, string label, bool isDirectAncestor =true)
     {
@@ -24,7 +45,8 @@ public static class TreeLabeller
 
             if (!current.IsLinkNode && !current.IsRootPerson)
             {
-                parentsToLookup.UnionWith(current.Spouses.Where(w => !w.IsLinkNode));
+                var partners = GetPartners(current, parentsDictionary);
+                parentsToLookup.UnionWith(partners.Where(w => !w.IsLinkNode));
                 parentsToLookup.Add(current); //for single parents - this does lead to so redundancy down
             }
 
@@ -44,15 +66,15 @@ public static class TreeLabeller
 
     }
 
-    public static void LabelDescendants(IEnumerable<Node> originator, string label, bool isDirectAncestor)
+    public static void LabelDescendants(Dictionary<int, List<Node>> parentsDictionary, IEnumerable<Node> originator, string label, bool isDirectAncestor)
     {
         foreach (var nodeWithChildren in originator)
         {
-            LabelDescendant(nodeWithChildren, label,isDirectAncestor);
+            LabelDescendant(parentsDictionary, nodeWithChildren, label,isDirectAncestor);
         }
     }
 
-    public static void LabelDescendant(Node originator, string label, bool isDirectAncestor)
+    public static void LabelDescendant(Dictionary<int, List<Node>> parentsDictionary, Node originator, string label, bool isDirectAncestor)
     {
         var stack = new Stack<Node>();
         stack.Push(originator);
@@ -66,25 +88,30 @@ public static class TreeLabeller
             if(!current.IsDirectAncestor) //if something has already been set, don't reset it.
                 current.IsDirectAncestor = isDirectAncestor;
 
-            foreach (var spouse in current.Spouses)
+            var partners = GetPartners(current, parentsDictionary);
+
+            foreach (var spouse in partners)
             {
+                if (string.IsNullOrEmpty(spouse.Origin))
+                    stack.Push(spouse);
+
                 spouse.Origin = label;
 
                 if (!spouse.IsDirectAncestor)
                     spouse.IsDirectAncestor = isDirectAncestor;
+
+                // Optional: Traverse UP from spouses of descendants/siblings to pull in extended in-laws
+                if (parentsDictionary.TryGetValue(spouse.Id, out var spouseParents))
+                {
+                    foreach (var parent in spouseParents)
+                    {
+                        if (string.IsNullOrEmpty(parent.Origin))
+                            stack.Push(parent);
+                    }
+                }
             }
             
-            //we need a better algorithm for calculating origins of descendants 
-            //this is because the same child can be added twice.
-            //the algorithm has a flaw so that when a ancestors descendants are calculated
-            //it uses the a ancestors spouses to work out who their children are.
-            //if the ancestor has children where the spouse is unknown there is no spouse
-            //so in order to get those children, the ancestor him/herself is added
-            //into the spouse list. 
-            //this in turn means that iterating over the spouse list to get children
-            //sometimes means that the same child will be added twice because
-            //they are in there from the spouse and from the ancestor.
-            foreach (var child in current.Children.Where(w=>w.Origin==""))
+            foreach (var child in current.Children.Where(w => string.IsNullOrEmpty(w.Origin)))
                 stack.Push(child);
 
         }
@@ -98,17 +125,17 @@ public static class TreeLabeller
 
         LabelAncestors(parentsCache, parentsToLookup, siblings, startNode, label);
 
-        LabelDescendants(siblings, label,false);
+        LabelDescendants(parentsCache, siblings, label,false);
 
-        LabelDescendants(parentsToLookup, label,false);
+        LabelDescendants(parentsCache, parentsToLookup, label,false);
 
         foreach (var spouse in parentsToLookup.ToList())
         {
             LabelAncestors(parentsCache, parentsToLookup, siblings, spouse, label,true);
 
-            LabelDescendants(siblings, label, false);
+            LabelDescendants(parentsCache, siblings, label, false);
 
-            LabelDescendants(parentsToLookup, label, false);
+            LabelDescendants(parentsCache, parentsToLookup, label, false);
         }
 
 

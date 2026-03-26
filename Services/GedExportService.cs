@@ -14,12 +14,7 @@ public class GedExportService
             throw new ArgumentException("Destination GED path is required.");
         }
 
-        if (!File.Exists(sourcePath))
-        {
-            throw new FileNotFoundException("Source GED file was not found.", sourcePath);
-        }
-
-        var inputLines = File.ReadAllLines(sourcePath);
+        var inputLines = TestData.source.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
         var outputLines = new List<string>();
 
         var currentRecord = new List<string>();

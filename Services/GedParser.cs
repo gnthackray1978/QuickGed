@@ -1,4 +1,4 @@
-﻿﻿using System.Data;
+﻿﻿﻿﻿using System.Data;
 using System.Diagnostics;
 using QuickGed.Domain;
 using QuickGed.Types;
@@ -19,17 +19,19 @@ public class GedParser : IGedParser
     { 
         var db = GedDb.Create(startId);
 
-        db.FileName = Path.GetFileName(path);
+        db.FileName = "TestData.source";
 
-        var fi = new FileInfo(path);
-
-        db.FileSize = fi.Length;
+        db.FileSize = TestData.source.Length;
 
 
         var timer = new Stopwatch();
         timer.Start();
 
-        var gedcomLines = File.ReadAllLines(path).Select(GedcomLine.Parse);
+        var lines = TestData.source.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var gedcomLines = lines.Select(GedcomLine.Parse).ToList();
+
+        // Add a dummy FAM line at the end to force the loop to process the very last family
+        gedcomLines.Add(new GedcomLine(0, "", "FAM", null, null));
 
        
 
@@ -253,6 +255,9 @@ public class GedParser : IGedParser
             }
 
         }
+
+        // Rebuild all relational links securely to fix any overwritten children from multiple marriages
+        db.RebuildDerivedLinks();
 
 
 

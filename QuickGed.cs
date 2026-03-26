@@ -258,6 +258,22 @@ namespace QuickGed
             return $"{personId} (not found)";
         }
 
+        public void DumpPersonOrigins()
+        {
+            if (_GedDb == null)
+            {
+                Console.WriteLine("No parsed GED data found.");
+                return;
+            }
+
+            Console.WriteLine($"Dumping origins for {_GedDb.Persons.Count} persons:");
+            foreach (var person in _GedDb.Persons)
+            {
+                var originDisplay = string.IsNullOrWhiteSpace(person.Origin) ? "(None)" : person.Origin;
+                Console.WriteLine($"- ID: {person.Id} | Name: {person.FullName} | Origin: {originDisplay}");
+            }
+        }
+
         public void ExportCurrentGed(string outputPath)
         {
             if (_GedDb == null)
