@@ -17,6 +17,7 @@ namespace QuickGed
         private readonly HashSet<int> _excludedPersonIds;
         private readonly HashSet<string> _deletedPersonReferences;
         public GedDb _GedDb { get; set; }
+        public string GedPath => _gedPath;
 
         public QuickGed(string filePath)
         {
@@ -283,6 +284,55 @@ namespace QuickGed
 
             var exportService = new GedExportService();
             exportService.ExportWithoutDeletedPeople(_gedPath, outputPath, _deletedPersonReferences);
+        }
+
+        public void ExportTreeAsCsv(string outputPath, string? treeOriginPattern = null)
+        {
+            if (_GedDb == null)
+            {
+                throw new InvalidOperationException("No parsed GED data found. Run ParseLabelledTree first.");
+            }
+
+            var personsToExport = string.IsNullOrWhiteSpace(treeOriginPattern)
+                ? _GedDb.Persons
+                : _GedDb.Persons.Where(p => p.Origin != null && p.Origin.Contains(treeOriginPattern, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (!personsToExport.Any())
+            {
+                throw new InvalidOperationException("No persons found matching the specified criteria.");
+            }
+
+            using var writer = new StreamWriter(outputPath);
+            
+            // Write headers
+            writer.WriteLine("Id,FullName,Gender,BirthDate,BirthLocation,DeathDate,DeathLocation,Origin,IsDirectAncestor,FatherId,MotherId");
+
+            foreach (var p in personsToExport)
+            {
+                var line = $"{p.Id}," +
+                           $"{EscapeCsv(p.FullName)}," +
+                           $"{EscapeCsv(p.Gender)}," +
+                           $"{EscapeCsv(p.BirthDate)}," +
+                           $"{EscapeCsv(p.BirthLocation)}," +
+                           $"{EscapeCsv(p.DeathDate)}," +
+                           $"{EscapeCsv(p.DeathLocation)}," +
+                           $"{EscapeCsv(p.Origin)}," +
+                           $"{p.IsDirectAncestor}," +
+                           $"{p.FatherId}," +
+                           $"{p.MotherId}";
+                writer.WriteLine(line);
+            }
+        }
+
+        private static string EscapeCsv(string? field)
+        {
+            if (string.IsNullOrEmpty(field)) return string.Empty;
+            
+            if (field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r'))
+            {
+                return $"\"{field.Replace("\"", "\"\"")}\"";
+            }
+            return field;
         }
 
         private HashSet<int> LoadExcludedPersonIds()

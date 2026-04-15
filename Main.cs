@@ -21,6 +21,7 @@ while (!shouldExit)
     Console.WriteLine("8. Export Current GED");
     Console.WriteLine("9. List Sub-Trees");
     Console.WriteLine("10. Dump Person Origins");
+    Console.WriteLine("11. Export Tree as CSV");
     Console.WriteLine("0. Exit");
     Console.WriteLine();
     Console.Write("Select an option: ");
@@ -58,6 +59,9 @@ while (!shouldExit)
             break;
         case "10":
             RunDumpPersonOrigins(app);
+            break;
+        case "11":
+            RunExportTreeAsCsv(app);
             break;
         case "0":
             shouldExit = true;
@@ -114,6 +118,44 @@ static void RunParseLabelledTree(string defaultGedPath, ref QuickGed.QuickGed? a
         app = new QuickGed.QuickGed(gedPath);
         app.ParseLabelledTree();
         Console.WriteLine($"GED file parsed and loaded. Total people in DB: {app._GedDb?.Persons?.Count ?? 0}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+
+    Console.WriteLine("Press Enter to return to menu.");
+    Console.ReadLine();
+}
+
+static void RunExportTreeAsCsv(QuickGed.QuickGed? app)
+{
+    Console.WriteLine();
+
+    if (app == null || !app.IsParsed)
+    {
+        Console.WriteLine("No parsed GED data found. Run ParseLabelledTree first.");
+        Console.WriteLine("Press Enter to return to menu.");
+        Console.ReadLine();
+        return;
+    }
+
+    var defaultCsvPath = Path.ChangeExtension(app.GedPath, ".csv");
+    Console.Write($"Enter output CSV path (press Enter for '{defaultCsvPath}'): ");
+    var outputPath = Console.ReadLine()?.Trim();
+
+    if (string.IsNullOrWhiteSpace(outputPath))
+    {
+        outputPath = defaultCsvPath;
+    }
+
+    Console.Write("Enter Tree Origin pattern to filter by (or press Enter to export all): ");
+    var origin = Console.ReadLine()?.Trim();
+
+    try
+    {
+        app.ExportTreeAsCsv(outputPath, origin);
+        Console.WriteLine($"Successfully exported CSV to: {outputPath}");
     }
     catch (Exception ex)
     {
