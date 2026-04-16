@@ -1,4 +1,4 @@
-﻿﻿using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using QuickGed.Domain;
@@ -303,25 +303,35 @@ namespace QuickGed
             }
 
             using var writer = new StreamWriter(outputPath);
-            
+            //
             // Write headers
             writer.WriteLine("Id,FullName,Gender,BirthDate,BirthLocation,DeathDate,DeathLocation,Origin,IsDirectAncestor,FatherId,MotherId");
 
             foreach (var p in personsToExport)
             {
+                var birthLocation = CleanupLocation(p.BirthLocation);
+                var deathLocation = CleanupLocation(p.DeathLocation);
+
                 var line = $"{p.Id}," +
                            $"{EscapeCsv(p.FullName)}," +
                            $"{EscapeCsv(p.Gender)}," +
                            $"{EscapeCsv(p.BirthDate)}," +
-                           $"{EscapeCsv(p.BirthLocation)}," +
+                           $"{EscapeCsv(birthLocation)}," +
                            $"{EscapeCsv(p.DeathDate)}," +
-                           $"{EscapeCsv(p.DeathLocation)}," +
+                           $"{EscapeCsv(deathLocation)}," +
                            $"{EscapeCsv(p.Origin)}," +
                            $"{p.IsDirectAncestor}," +
                            $"{p.FatherId}," +
                            $"{p.MotherId}";
                 writer.WriteLine(line);
             }
+        }
+
+        private static string? CleanupLocation(string? location)
+        {
+            if (string.IsNullOrWhiteSpace(location)) return location;
+            location = Regex.Replace(location, @"\s*,\s*", ",");
+            return Regex.Replace(location.Replace(',', '/'), @"\s+", " ");
         }
 
         private static string EscapeCsv(string? field)
