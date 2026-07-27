@@ -366,16 +366,25 @@ public class GedParser : IGedParser
                     }
                 }
 
-                if (line.Type == "GIVN")
+                                if (line.Type == "GIVN")
                 {
-                    currentPerson.Forename = line.Data;
+                    if (currentPerson.FamilyName != line.Data)
+                    {
+                        currentPerson.Forename = line.Data;
+                    }
 
                     if (currentPerson.Forename == currentPerson.FamilyName)
                     {
                         currentPerson.FamilyName = "";
                     }
                 }
-                if (line.Type == "SURN") currentPerson.FamilyName = line.Data;
+                if (line.Type == "SURN")
+                {
+                    if (currentPerson.Forename != line.Data)
+                    {
+                        currentPerson.FamilyName = line.Data;
+                    }
+                }
 
                 break;
 

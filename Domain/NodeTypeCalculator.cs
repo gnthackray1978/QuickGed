@@ -1,47 +1,40 @@
-﻿namespace QuickGed.Domain
+﻿using System.Text.RegularExpressions;
+
+namespace QuickGed.Domain
 {
     public class NodeTypeCalculator : INodeTypeCalculator
     {
+        private static readonly Regex RootRegex = new Regex(@"^(\[[\d.]+\]|[\d.]+\||\|\[[\d.]+\]\||\|[\d.]+\|)", RegexOptions.Compiled);
+
         public bool IsRootPerson(string forename, string surname)
         {
-            var isMatch = false;
-
-            if (forename.ToLower().Contains("group") || surname.ToLower().Contains("group")) return false;
-
-            if ((forename.ToLower().Contains("chr") || surname.ToLower().Contains("chr")) && !surname.ToLower().Contains("christ")) return false;
-
-            if (forename.ToLower().Contains("|") || surname.ToLower().Contains("|")) return true;
-
-            return isMatch;
+            return IsRootPerson(forename + " " + surname);
         }
 
         public bool IsRootPerson(string fullName)
         {
-            var isMatch = false;
+            if (string.IsNullOrWhiteSpace(fullName)) return false;
+            
+            var lower = fullName.ToLower();
+            if (lower.Contains("group")) return false;
 
-            if (fullName.ToLower().Contains("group")) return false;
+            if (lower.Contains("chr") && !lower.Contains("christ")) return false;
 
-            if (fullName.ToLower().Contains("chr")) return false;
-
-            if (fullName.ToLower().Contains("|")) return true;
-
-            return isMatch;
+            return RootRegex.IsMatch(fullName.Trim());
         }
 
         public bool IsLinkNode(string forename, string surname)
         {
-            if (forename.ToLower().Contains("group") || surname.ToLower().Contains("group")) return true;
-
-            if (forename.ToLower().Contains("chr") || surname.ToLower().Contains("chr")) return true;
- 
-            return false;
+            return IsLinkNode(forename + " " + surname);
         }
 
         public bool IsLinkNode(string fullName)
         {
-            if (fullName.ToLower().Contains("group")) return true;
+            if (string.IsNullOrWhiteSpace(fullName)) return false;
+            var lower = fullName.ToLower();
 
-            if (fullName.ToLower().Contains("chr")) return true;
+            if (lower.Contains("group")) return true;
+            if (lower.Contains("chr")) return true;
  
             return false;
         }

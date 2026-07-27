@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using QuickGed.Domain;
@@ -7,15 +7,17 @@ using QuickGed.Types;
 
 namespace QuickGed
 {
-    //reading the gedfile into a list of relationships, persons, and childrelationships
-    //labelling file
-    //get lists of tree by group name
+    // Reading the gedfile into a list of relationships, persons, and childrelationships
+    // labelling file
+    // get lists of tree by group name
     public class QuickGed
     {
         private string _gedPath;
         private readonly string _exclusionFilePath;
         private readonly HashSet<int> _excludedPersonIds;
         private readonly HashSet<string> _deletedPersonReferences;
+        private readonly INodeTypeCalculator _nodeTypeCalculator;
+
         public GedDb _GedDb { get; set; }
         public string GedPath => _gedPath;
 
@@ -25,11 +27,11 @@ namespace QuickGed
             _exclusionFilePath = Path.Combine(AppContext.BaseDirectory, "quickged.exclusions.json");
             _excludedPersonIds = LoadExcludedPersonIds();
             _deletedPersonReferences = new HashSet<string>();
+            _nodeTypeCalculator = new NodeTypeCalculator();
+            _GedDb = new GedDb();
         }
 
         public bool IsParsed => _GedDb != null;
-
-        #region uninterested right now
 
         public int GetMyId()
         {
@@ -39,7 +41,6 @@ namespace QuickGed
         public HashSet<int> GetListOfTreeIds()
         {
             var lst = GetTreeRootPersons().Select(s => s.Id);
-
             var set = new HashSet<int>();
 
             foreach (var i in lst)
@@ -53,7 +54,6 @@ namespace QuickGed
         public Dictionary<int, string> GetTreeRootNameDictionary()
         {
             var nameDictionary = new Dictionary<int, string>();
-
             var lst = GetTreeRootPersons();
 
             foreach (var i in lst)
@@ -67,8 +67,6 @@ namespace QuickGed
         public Dictionary<int, string> GetTreeGroupNameDictionary()
         {
             var nameDictionary = new Dictionary<int, string>();
-
-
             var gps = GetGroupPerson();
 
             foreach (var i in gps)
@@ -83,56 +81,35 @@ namespace QuickGed
         {
             int personId = GetMyId();
 
-            Regex r = new Regex(@"^(\[\d+\]|\d+\s|\|\[\d+\]\||\|\d+\|)");
-
-
             var result = _GedDb.Persons.Where(p =>
-                p != null && !string.IsNullOrEmpty(p.FullName) && (!p.FullName.ToLower().Contains("group") || p.Id == personId));
+                p != null && !string.IsNullOrEmpty(p.FullName) &&
+                _nodeTypeCalculator.IsRootPerson(p.FullName) &&
+                (!p.FullName.ToLower().Contains("group") || p.Id == personId));
 
-            var persons = new List<Node>();
-            
-            // Added the loop here so your traces print out during ParseLabelledTree
-            foreach (var person in result)
-            {
-                // Console.WriteLine($"[TRACE] Checking potential root: '{person.FullName}'");
-                if (!string.IsNullOrEmpty(person.FullName) && r.IsMatch(person.FullName.Trim()))
-                {
-                     Console.WriteLine($"[TRACE] Checking potential root: '{person.FullName}'");
-                    persons.Add(person);
-                }
-            }
-            
-            return persons;
+            return result.ToList();
         }
 
         public List<IPerson> GetGroupPerson()
         {
             var groups = this._GedDb.Persons.Where(p => p != null && !string.IsNullOrEmpty(p.FullName) && p.FullName.ToLower().Contains("group"));
-
             return groups.Cast<IPerson>().ToList();
         }
 
         public Dictionary<string, List<string>> GetGroups()
         {
             var results = new Dictionary<string, List<string>>();
-
             var treeIds = GetListOfTreeIds();
-
 
             var tp = this._GedDb.Relationships
                 .Select(s => new RelationSubSet() { Person1Id = s.Person1Id, Person2Id = s.Person2Id }).ToList();
 
             var nameDict = GetTreeRootNameDictionary();
-
             var groupNames = GetTreeGroupNameDictionary();
 
             foreach (var treeId in treeIds)
             {
-
                 var groupMembers = tp.Where(t => t.MatchEither(treeId)).Select(s => s.GetOtherSide(treeId)).Distinct().ToList();
-
                 var names = IdsToNames(groupMembers, groupNames);
-
                 results.Add(nameDict[treeId], names);
             }
 
@@ -144,8 +121,6 @@ namespace QuickGed
             return (from gm in groupMembers where nameDict.ContainsKey(gm) select nameDict[gm]).ToList();
         }
 
-
-        #endregion
 
         public void DummyEntry()
         {
@@ -207,40 +182,35 @@ namespace QuickGed
 
         public void ParseLabelledTree()
         {
-            var gp = new GedParser(new NodeTypeCalculator());
+            var gp = new GedParser(_nodeTypeCalculator);
 
             _GedDb = gp.Parse(this._gedPath);
             Console.WriteLine($"[TRACE] QuickGed database populated with {_GedDb.Persons.Count} persons.");
             _deletedPersonReferences.Clear();
 
-
-
             var rootPersons = this.GetTreeRootPersons();
 
             Console.WriteLine($"[TRACE] Found {rootPersons.Count} root persons matching the default pattern for labelling.");
+
+            foreach (var rp in rootPersons)
+            {
+                Console.WriteLine($"[TRACE] Root person: '{rp.FullName}' (ID: {rp.Id})");
+            }
 
             var timer = new Stopwatch();
             timer.Start();
 
             var idx = 0;
-
             foreach (var rp in rootPersons)
             {
                 TreeLabeller.LabelTree(this._GedDb.ParentDictionary, rp, rp.FullName);
-
                 Console.Write("\r{0}%   ", idx);
-
                 idx++;
-
             }
 
             timer.Stop();
-
             TimeSpan timeTaken = timer.Elapsed;
-            string foo = "Time taken: " + timeTaken.ToString(@"m\:ss\.fff");
-
-            Console.WriteLine(foo);
-
+            Console.WriteLine("\nTime taken: " + timeTaken.ToString(@"m\:ss\.fff"));
             Console.WriteLine("finished");
         }
 
@@ -303,14 +273,19 @@ namespace QuickGed
             }
 
             using var writer = new StreamWriter(outputPath);
-            //
+
             // Write headers
-            writer.WriteLine("Id,FullName,Gender,BirthDate,BirthLocation,DeathDate,DeathLocation,Origin,IsDirectAncestor,FatherId,MotherId");
+            writer.WriteLine("Id,FullName,Gender,BirthDate,BirthLocation,DeathDate,DeathLocation,Origin,Component,Lineage,cm,tester,TreeName,IsDirectAncestor,FatherId,MotherId");
 
             foreach (var p in personsToExport)
             {
                 var birthLocation = CleanupLocation(p.BirthLocation);
                 var deathLocation = CleanupLocation(p.DeathLocation);
+                var component = ExtractComponent(p.Origin);
+                var lineage = ExtractLineage(p.Origin);
+                var cm = ExtractCm(p.Origin);
+                var tester = ExtractTester(p.Origin);
+                var treeName = ExtractTreeName(p.Origin);
 
                 var line = $"{p.Id}," +
                            $"{EscapeCsv(p.FullName)}," +
@@ -320,11 +295,81 @@ namespace QuickGed
                            $"{EscapeCsv(p.DeathDate)}," +
                            $"{EscapeCsv(deathLocation)}," +
                            $"{EscapeCsv(p.Origin)}," +
+                           $"{EscapeCsv(component)}," +
+                           $"{lineage}," +
+                           $"{EscapeCsv(cm)}," +
+                           $"{EscapeCsv(tester)}," +
+                           $"{EscapeCsv(treeName)}," +
                            $"{p.IsDirectAncestor}," +
                            $"{p.FatherId}," +
                            $"{p.MotherId}";
                 writer.WriteLine(line);
             }
+        }
+
+        private static string ExtractTreeName(string? origin)
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return string.Empty;
+            var segments = origin.Split('|');
+            for (int i = 0; i < segments.Length; i++)
+            {
+                // Find the segment that is the numeric 'cm'
+                if (double.TryParse(segments[i].Trim(), out _))
+                {
+                    // The tree name is the segment immediately following it
+                    if (i + 1 < segments.Length)
+                    {
+                        // Replace '!' with space and remove GEDCOM surname slashes '/'
+                        return segments[i + 1].Trim().Replace('!', ' ').Replace("/", "");
+                    }
+                    break;
+                }
+            }
+            return string.Empty;
+        }
+
+        private static string ExtractTester(string? origin)
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return string.Empty;
+            var segments = origin.Split('|');
+            foreach (var segment in segments)
+            {
+                var trimmed = segment.Trim();
+                if (trimmed.Contains("ct", StringComparison.OrdinalIgnoreCase)) return "ct";
+                if (trimmed.Contains("ah", StringComparison.OrdinalIgnoreCase)) return "ah";
+            }
+            return string.Empty;
+        }
+
+        private static string ExtractCm(string? origin)
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return string.Empty;
+            var segments = origin.Split('|');
+            foreach (var segment in segments)
+            {
+                var trimmed = segment.Trim();
+                if (double.TryParse(trimmed, out _))
+                {
+                    return trimmed;
+                }
+            }
+            return string.Empty;
+        }
+
+        private static int ExtractLineage(string? origin)
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return -1;
+            if (origin.Contains("pat", StringComparison.OrdinalIgnoreCase)) return 1;
+            if (origin.Contains("mat", StringComparison.OrdinalIgnoreCase)) return 0;
+            return -1;
+        }
+
+        private static string ExtractComponent(string? origin)
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return string.Empty;
+            // Look for '|c' followed by anything that isn't a pipe
+            var match = Regex.Match(origin, @"\|(c[^|]+)");
+            return match.Success ? match.Groups[1].Value : string.Empty;
         }
 
         private static string? CleanupLocation(string? location)
@@ -337,7 +382,7 @@ namespace QuickGed
         private static string EscapeCsv(string? field)
         {
             if (string.IsNullOrEmpty(field)) return string.Empty;
-            
+
             if (field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r'))
             {
                 return $"\"{field.Replace("\"", "\"\"")}\"";
@@ -371,6 +416,5 @@ namespace QuickGed
             var json = JsonSerializer.Serialize(ordered, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_exclusionFilePath, json);
         }
-
     }
 }

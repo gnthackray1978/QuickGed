@@ -1,8 +1,10 @@
+// dotnet run --project QuickGed/QuickGed.csproj
+
 using QuickGed;
 
 //var defaultGedPath = args.Length > 0 ? args[0] : string.Empty;
 
-var defaultGedPath = @"C:\Users\gntha\Downloads\dev test tree\dev.ged";
+var defaultGedPath = @"C:\Users\gntha\Downloads\DNA Match File\DNA Match File.ged";
 var shouldExit = false;
 QuickGed.QuickGed? app = null;
 
