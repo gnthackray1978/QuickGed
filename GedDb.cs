@@ -12,9 +12,9 @@ public class GedDb
     public Dictionary<int, Person> PersonDictionary;
     public Dictionary<int, string> PersonReferenceById;
 
-    public Dictionary<int, List<Node>> ParentDictionary;
+        public Dictionary<int, List<Node>> ParentDictionary { get; set; }
 
-    public string FileName { get; set; }
+    public string FileName { get; set; } = default!;
 
     public long FileSize { get; set; }
 

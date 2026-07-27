@@ -15,32 +15,37 @@ public class GedParser : IGedParser
         
     }
 
-    public GedDb Parse(string path,int startId=0)
-    { 
+        public GedDb Parse(string path, int startId = 0, bool useTestData = false)
+    {
         var db = GedDb.Create(startId);
-
-        db.FileName = "TestData.source";
-
-        db.FileSize = TestData.source.Length;
-
-
         var timer = new Stopwatch();
         timer.Start();
+        List<GedcomLine?> gedcomLines;
 
-        var lines = TestData.source.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-        var gedcomLines = lines.Select(GedcomLine.Parse).ToList();
+                if (useTestData)
+        {
+            db.FileName = "TestData.source";
+            db.FileSize = TestData.source.Length;
 
-        // Add a dummy FAM line at the end to force the loop to process the very last family
-        gedcomLines.Add(new GedcomLine(0, "", "FAM", null, null));
+            var lines = TestData.source.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            gedcomLines = lines.Select(GedcomLine.Parse).ToList();
 
-       
+            // Add a dummy FAM line at the end to force the loop to process the very last family
+            gedcomLines.Add(new GedcomLine(0, "", "FAM", null, null));
+
+        }
+        else
+        {
+            db.FileName = Path.GetFileName(path);
+            var fi = new FileInfo(path);
+            db.FileSize = fi.Length;
+            gedcomLines = File.ReadAllLines(path).Select(GedcomLine.Parse).ToList();
+        }
 
         var idLookupDictionary = new Dictionary<string, int>();
-
-
         var childList = new List<Node>();
-      //  int personiId = 1;
-        Person currentPerson = null;
+        //  int personiId = 1;
+        Person? currentPerson = null;
         var currentLevelOneType = "";
         var currentDate = "";
         var currentPlace = "";
@@ -62,22 +67,25 @@ public class GedParser : IGedParser
 
             if (line.Level == 0 && line.Type != "FAM")
                 inFamily = false;
-            
+
             if (line.Type == "INDI")
             {
                 //remember this will be the previous one that's being inserted 
                 //if its null it wont get inserted into the collection
-                db.Insert(currentPerson);
+                if (currentPerson != null) db.Insert(currentPerson);
 
                 currentPlace = "";
                 currentDate = "";
 
                 currentPerson = new Person(db.NewId(), _nodeTypeCalculator);
 
-                idLookupDictionary.Add(line.Id, currentPerson.Id);
-                db.PersonReferenceById[currentPerson.Id] = line.Id;
+                if (line.Id != null)
+                {
+                    idLookupDictionary.Add(line.Id, currentPerson.Id);
+                    db.PersonReferenceById[currentPerson.Id] = line.Id;
+                }
             }
-            
+
             if (line.Type == "FAM" && currentPerson != null)// we have moved on to the families tidy up the last entry in the persons list
             {
                 db.Insert(currentPerson);
@@ -87,7 +95,7 @@ public class GedParser : IGedParser
                 currentDate = "";
             }
 
-            if(currentPerson!=null)
+            if (currentPerson != null)
                 ProcessIndividuals(line, ref currentPerson, currentLevelOneType);
 
 
@@ -99,7 +107,7 @@ public class GedParser : IGedParser
                     case "DATE":
                         if (line.Level == 2)
                         {
-                            currentDate = line.Data;
+                            currentDate = line.Data ?? "";
                         }
 
                         break;
@@ -107,7 +115,7 @@ public class GedParser : IGedParser
                     case "PLAC":
                         if (line.Level == 2)
                         {
-                            currentPlace = line.Data;
+                            currentPlace = line.Data ?? "";
                         }
 
                         break;
@@ -120,8 +128,8 @@ public class GedParser : IGedParser
                             db.Relationships.Add(RelationSubSet.Create(relationshipId, currentDate
                                 , currentPlace, currentHusband, currentWife, marriageYear));
 
-                            Person husband = null;
-                            Person wife = null;
+                            Person? husband = null;
+                            Person? wife = null;
 
                             if (db.PersonDictionary.ContainsKey(currentHusband))
                             {
@@ -205,25 +213,25 @@ public class GedParser : IGedParser
                         {
                             var child = childId;
 
-                            if (db.PersonDictionary.ContainsKey(child))
+                            if (db.PersonDictionary.TryGetValue(child, out var childPerson))
                             {
-                                db.PersonDictionary[child].FatherId = currentHusband;
-                                db.PersonDictionary[child].MotherId = currentWife;
+                                childPerson.FatherId = currentHusband;
+                                childPerson.MotherId = currentWife;
 
-                                childList.Add(db.PersonDictionary[child]);
+                                childList.Add(childPerson);
 
-                            if (!db.ParentDictionary.ContainsKey(child))
-                            {
-                                var parentList = new List<Node>();
+                                if (!db.ParentDictionary.ContainsKey(child))
+                                {
+                                    var parentList = new List<Node>();
 
-                                if (currentHusband != 0)
-                                    parentList.Add(db.PersonDictionary[currentHusband]);
+                                    if (currentHusband != 0 && db.PersonDictionary.TryGetValue(currentHusband, out var husbandPerson))
+                                        parentList.Add(husbandPerson);
 
-                                if (currentWife != 0)
-                                    parentList.Add(db.PersonDictionary[currentWife]);
+                                    if (currentWife != 0 && db.PersonDictionary.TryGetValue(currentWife, out var wifePerson))
+                                        parentList.Add(wifePerson);
 
-                                db.ParentDictionary.Add(child, parentList);
-                            }
+                                    db.ParentDictionary.Add(child, parentList);
+                                }
                             }
                         }
 
@@ -272,7 +280,7 @@ public class GedParser : IGedParser
         return db;
     }
 
-    private static bool FindLocation(Person person, out string location)
+        private static bool FindLocation(Person person, out string location)
     {
         location = "";
 
@@ -282,14 +290,17 @@ public class GedParser : IGedParser
             !string.IsNullOrEmpty(person.DeathLocation) ||
             !string.IsNullOrEmpty(person.Residence)) return false;
 
-        foreach (var c in person.Children.Cast<Person?>().Where(c => !string.IsNullOrEmpty(c.BirthLocation)))
+        foreach (var c in person.Children.Cast<Person?>())
         {
-            location = c.BirthLocation;
-            return true;
+            if (c != null && !string.IsNullOrEmpty(c.BirthLocation))
+            {
+                location = c.BirthLocation;
+                return true;
+            }
         }
 
         return false;
-        
+
     }
 
     private static void ProcessIndividuals(GedcomLine line, ref Person currentPerson, string currentLevelOneType)

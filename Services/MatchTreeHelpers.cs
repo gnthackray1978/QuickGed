@@ -6,47 +6,55 @@ public class MatchTreeHelpers
 {
 
 
-    public static DateTime ExtractDate(object originalText)
+        public static DateTime ExtractDate(object? originalText)
     {
         DateTime dt = DateTime.Today;
 
         if (originalText == null) return dt;
 
-        var parts = originalText.ToString().Split('/');
+        var text = originalText.ToString();
+        if (string.IsNullOrEmpty(text)) return dt;
 
-        int day = 0;
-        int month = 0;
-        int year = 0;
+        var parts = text.Split('/');
+        if (parts.Length < 3) return dt;
 
-        day = Convert.ToInt32(parts[1]);
-        month = Convert.ToInt32(parts[0]);
-        year = Convert.ToInt32(parts[2]);
-
-        dt = new DateTime(year, month, day);
+        if (int.TryParse(parts[1], out int day) &&
+            int.TryParse(parts[0], out int month) &&
+            int.TryParse(parts[2], out int year))
+        {
+            try
+            {
+                dt = new DateTime(year, month, day);
+            }
+            catch (ArgumentOutOfRangeException) { }
+        }
 
         return dt;
 
     }
 
-    public static int ExtractYear(object originalText)
+    public static int ExtractYear(object? originalText)
     {
 
         if (originalText == null) return 0;
 
         var parsedText = originalText.ToString();
+        if (string.IsNullOrEmpty(parsedText)) return 0;
 
         Regex regex = new Regex(@"\d\d\d\d");
         var v = regex.Match(parsedText);
-        string anyoString = v.Groups[0].ToString();
-
-        if (anyoString != string.Empty)
-            return Convert.ToInt32(anyoString);
-        else
-            return 0;
+        
+        if (v.Success)
+        {
+            string anyoString = v.Groups[0].Value;
+            return int.TryParse(anyoString, out int year) ? year : 0;
+        }
+        
+        return 0;
 
     }
 
-    public static double ExtractDouble(object originalText)
+    public static double ExtractDouble(object? originalText)
     {
         double retVal = 0;
 
@@ -54,15 +62,15 @@ public class MatchTreeHelpers
 
         var parsedText = originalText.ToString();
 
-
-
-        double.TryParse(parsedText, out retVal);
-
+        if (parsedText != null)
+        {
+            double.TryParse(parsedText, out retVal);
+        }
 
         return retVal;
     }
 
-    public static int ExtractInt(object originalText)
+    public static int ExtractInt(object? originalText)
     {
         int retVal = 0;
 
@@ -70,15 +78,15 @@ public class MatchTreeHelpers
 
         var parsedText = originalText.ToString();
 
-
-
-        int.TryParse(parsedText, out retVal);
-
+        if (parsedText != null)
+        {
+            int.TryParse(parsedText, out retVal);
+        }
 
         return retVal;
     }
 
-    public static long ExtractLong(object originalText)
+    public static long ExtractLong(object? originalText)
     {
         long retVal = 0;
 
@@ -86,15 +94,15 @@ public class MatchTreeHelpers
 
         var parsedText = originalText.ToString();
 
-
-
-        long.TryParse(parsedText, out retVal);
-
+        if (parsedText != null)
+        {
+            long.TryParse(parsedText, out retVal);
+        }
 
         return retVal;
     }
 
-    public static bool ExtractBool(object originalText)
+    public static bool ExtractBool(object? originalText)
     {
         bool retVal = false;
 
@@ -102,15 +110,15 @@ public class MatchTreeHelpers
 
         var parsedText = originalText.ToString();
 
-
-
-        bool.TryParse(parsedText, out retVal);
-
+        if (parsedText != null)
+        {
+            bool.TryParse(parsedText, out retVal);
+        }
 
         return retVal;
     }
 
-    public static Guid ExtractGuid(object originalText)
+    public static Guid ExtractGuid(object? originalText)
     {
         Guid retVal = Guid.Empty;
 
@@ -118,10 +126,10 @@ public class MatchTreeHelpers
 
         var parsedText = originalText.ToString();
 
-
-
-        Guid.TryParse(parsedText, out retVal);
-
+        if (parsedText != null)
+        {
+            Guid.TryParse(parsedText, out retVal);
+        }
 
         return retVal;
     }

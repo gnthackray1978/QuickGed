@@ -4,7 +4,7 @@ namespace QuickGed.Services;
 
 public class AgeRangeCalculator
 {
-    private static DupeAgeInfo GetFirstChildBirth(Person person)
+        private static DupeAgeInfo? GetFirstChildBirth(Person person)
     {
         var list = new List<DupeAgeInfo>();
 
@@ -30,7 +30,7 @@ public class AgeRangeCalculator
         return list.Count > 0 ? list.MinBy(o => o.Year) : null;
     }
 
-    private static DupeAgeInfo GetDeathDate(Person person)
+    private static DupeAgeInfo? GetDeathDate(Person person)
     {
         List<DupeAgeInfo> list = new List<DupeAgeInfo>();
 
@@ -58,18 +58,16 @@ public class AgeRangeCalculator
 
     public static ProcessDateReturnType GetPersonBirthDateRange(Person person)
     {
-        var processDateReturnType = new ProcessDateReturnType();
-
         var fcb = GetFirstChildBirth(person);
 
         if (fcb != null)
         {
-            processDateReturnType.YearFrom = fcb.Year - 50;
-            processDateReturnType.YearTo = fcb.Year - 18;
-            processDateReturnType.RangeString = (fcb.Year - 50).ToString() + " " + (fcb.Year - 18).ToString();
-
-            return processDateReturnType;
-
+            return new ProcessDateReturnType
+            {
+                YearFrom = fcb.Year - 50,
+                YearTo = fcb.Year - 18,
+                RangeString = (fcb.Year - 50).ToString() + " " + (fcb.Year - 18).ToString()
+            };
         }
 
 
@@ -77,14 +75,17 @@ public class AgeRangeCalculator
 
         if (dd != null)
         {
-            processDateReturnType.YearFrom = dd.Year - 75;
-            processDateReturnType.YearTo = dd.Year;
-            processDateReturnType.RangeString = (dd.Year - 75).ToString() + " " + dd.Year.ToString();
-
-            return processDateReturnType;
-
+            return new ProcessDateReturnType
+            {
+                YearFrom = dd.Year - 75,
+                YearTo = dd.Year,
+                RangeString = (dd.Year - 75).ToString() + " " + dd.Year.ToString()
+            };
         }
 
-        return processDateReturnType;
+        return new ProcessDateReturnType
+        {
+            RangeString = ""
+        };
     }
 }

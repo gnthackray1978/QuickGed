@@ -3,18 +3,18 @@
 internal class GedcomLine
 {
     public int Level { get; }
-    public string Id { get; }
+        public string? Id { get; }
     public string Type { get; }
-    public string Data { get; }
-    public string Reference { get; }
+    public string? Data { get; }
+    public string? Reference { get; }
 
     public string Dump()
     {
-        return "level : " + Level + " id " + Id + ": type " + Type + ": data " + Data + ":ref " + Reference;
+        return "level : " + Level + " id " + (Id ?? "") + ": type " + Type + ": data " + (Data ?? "") + ":ref " + (Reference ?? "");
     }
 
 
-    internal GedcomLine(int level, string id, string type, string data, string reference)
+    internal GedcomLine(int level, string? id, string type, string? data, string? reference)
     {
         Level = level;
         Id = id;
@@ -23,7 +23,7 @@ internal class GedcomLine
         Reference = reference;
     }
 
-    internal static GedcomLine Parse(string line)
+    internal static GedcomLine? Parse(string line)
     {
         line = line.Trim();
         if (string.IsNullOrEmpty(line))
@@ -44,10 +44,10 @@ internal class GedcomLine
         }
 
         // Normal case is no Id
-        var id = (string)null;
+        string? id = null;
         var type = sections[1];
-        var data = sections.Length > 2 ? line.Substring(line.IndexOf(type) + type.Length).Trim() : null;
-        var idReference = (string)null;
+        string? data = sections.Length > 2 ? line.Substring(line.IndexOf(type) + type.Length).Trim() : null;
+        string? idReference = null;
 
         // If there is an Id we take another approach
         if (sections[1].StartsWith("@") && sections[1].EndsWith("@"))
@@ -61,7 +61,7 @@ internal class GedcomLine
             data = sections.Length > 3 ? line.Substring(line.IndexOf(type) + type.Length).Trim() : null;
         }
 
-        if (data.IsSpecified() && data.StartsWith("@") && data.EndsWith("@"))
+        if (data.IsSpecified() && data!.StartsWith("@") && data.EndsWith("@"))
         {
             idReference = data;
             data = null;

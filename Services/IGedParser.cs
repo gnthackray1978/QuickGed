@@ -2,5 +2,5 @@
 
 public interface IGedParser
 {
-    GedDb Parse(string path, int startId = 0);
+    GedDb Parse(string path, int startId = 0, bool useTestData = false);
 }
