@@ -275,7 +275,7 @@ namespace QuickGed
             using var writer = new StreamWriter(outputPath);
 
             // Write headers
-            writer.WriteLine("Id,FullName,Gender,BirthDate,BirthLocation,DeathDate,DeathLocation,Origin,Component,Lineage,cm,tester,TreeName,IsDirectAncestor,FatherId,MotherId");
+            writer.WriteLine("Id,FullName,Gender,BirthDate,BirthYear,BirthLocation,DeathDate,DeathYear,DeathLocation,Origin,Component,Lineage,cm,tester,TreeName,IsDirectAncestor,FatherId,MotherId");
 
             foreach (var p in personsToExport)
             {
@@ -287,12 +287,19 @@ namespace QuickGed
                 var tester = ExtractTester(p.Origin);
                 var treeName = ExtractTreeName(p.Origin);
 
+                var birthYearInt = MatchTreeHelpers.ExtractYear(p.BirthDate);
+                var deathYearInt = MatchTreeHelpers.ExtractYear(p.DeathDate);
+                var birthYear = birthYearInt > 0 ? birthYearInt.ToString() : string.Empty;
+                var deathYear = deathYearInt > 0 ? deathYearInt.ToString() : string.Empty;
+
                 var line = $"{p.Id}," +
                            $"{EscapeCsv(p.FullName)}," +
                            $"{EscapeCsv(p.Gender)}," +
                            $"{EscapeCsv(p.BirthDate)}," +
+                           $"{birthYear}," +
                            $"{EscapeCsv(birthLocation)}," +
                            $"{EscapeCsv(p.DeathDate)}," +
+                           $"{deathYear}," +
                            $"{EscapeCsv(deathLocation)}," +
                            $"{EscapeCsv(p.Origin)}," +
                            $"{EscapeCsv(component)}," +
